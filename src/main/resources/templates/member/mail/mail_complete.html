@@ -1,0 +1,28 @@
+<html
+        xmlns:th="http://thymeleaf.org"
+>
+
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.2/css/all.min.css" integrity="sha512-1sCRPdkRXhBV2PBLUdRb4tMg1w2YPf37qatUFeS7zlBy7jJI8Lf4VHwWfZZfpXtYSLy85pkm9GaYVYMfw5BC1A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body style="background-color: #f5f6f8;">
+<!--<div layout:fragment="content" class="main-content-container container-fluid px-4">-->
+    <div class="container mx-auto w-[700px] mt-28 p-10 my-10 flex flex-col text-center bg-white rounded-2xl shadow-md">
+        <form th:action="@{/mail/reset}" method="post">
+            <i class="fa-solid fa-envelope-circle-check fa-5x"></i>
+            <div class="text-center text-xl text-2xl font-semibold mt-1 mb-12 pb-1">이메일 발송 완료</div>
+            <div> 입력하신 메일 주소로 비밀번호 재설정을 위한 이메일이 성공적으로 발송되었습니다. </div>
+            <div> 메일 인증을 통해 비밀번호를 설정해주시기 바랍니다. </div>
+            <div class="mb-3 flex mt-5 mr-2">
+                <a th:href="@{|/mail/send|}">
+                    <i class="fa-solid fa-arrow-left-long pt-3"></i>
+                    <span class="mb-0">이전 페이지로</span>
+                </a>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
+

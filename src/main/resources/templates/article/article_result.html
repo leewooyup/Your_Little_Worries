@@ -1,0 +1,1034 @@
+<html
+        xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+        xmlns:th="http://thymeleaf.org"
+        xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+        layout:decorate="~{layout}">
+<head>
+    <link rel="stylesheet" type="text/css" href="/styles/snsIcon/snsIcon.css"> <!-- sns공유하기 -->
+    <script src="//developers.kakao.com/sdk/js/kakao.min.js"></script>  <!-- 카카오sns 공유하기 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+</head>
+<div layout:fragment="content" class="main-content-container container px-4">
+    <!-- Page Header start-->
+    <div class="page-header row no-gutters py-4">
+        <div class="col-12 col-sm-4 text-center text-sm-left mb-0">
+            <span class="text-uppercase page-subtitle">나의 자질구레한 고민들</span>
+            <h3 class="page-title">투표 결과</h3>
+        </div>
+    </div>
+    <!-- Page Header end-->
+    <div class="row">
+        <!-- total 결과 그래프 start -->
+        <div class="col-lg-8 col-md-12 col-sm-12 ">
+            <div class="card card-small card-post mb-4 flex rounded-2xl shadow-md">
+                <div class="card-header border-bottom">
+                    <h3 class="m-1">[[${article.title}]]</h3>
+                    <div class="mt-3 ml-3 ">[[${article.content}]]</div>
+                </div>
+                <div class="card-body pt-0 mt-2">
+                    <div style="height: 400px" th:if="${#lists.size(articleItemList) <= 3}">
+                        <canvas th:id="totalResult" ></canvas>
+                    </div>
+                    <div style="height: 500px" th:if="${3 < #lists.size(articleItemList) && #lists.size(articleItemList) <= 6}">
+                        <canvas th:id="totalResult" ></canvas>
+                    </div>
+                    <div style="height: 700px" th:if="${#lists.size(articleItemList) > 6}">
+                        <canvas th:id="totalResult"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- total 결과 그래프 end -->
+        <!-- 결과 수치 start -->
+        <div class="col-lg-4 col-md-12 col-sm-12 ">
+            <div class="stats-small stats-small--1 card card-small mb-4 rounded-2xl shadow-md">
+                <div class="card-body py-4 d-flex">
+                    <div class="d-flex flex-column m-auto">
+                        <div class="stats-small__data text-center">
+                            <span class="text-uppercase font-weight-bold">총 투표수</span>
+                            <h6 id="totalVoteView" class="stats-small__value count my-3"></h6>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stats-small stats-small--1 card card-small rounded-2xl shadow-md mb-4">
+                <div class="card-body ">
+                    <div th:each="articleItem,stat : ${articleItemList}">
+                        <div class="stats-small__data text-center border-bottom rounded mb-2">
+                            <span class="stats-small__label pb-1 text-uppercase"
+                                  th:text="${(stat.index+1+'.')+articleItem.content}"></span>
+                            <h4><span class="count" th:text="${articleItem.total}"></span></h4>
+                        </div>
+                    </div>
+                    <div>
+                        <th:block th:if="${rejectResultPage}" class="row justify-content-around font-weight-bold">
+                            <h6 class="font-weight-bold border p-2 bg-info rounded bg-light text-center" style="word-break: keep-all">
+                                <span>총 투표수 30을 넘어야 통계 결과를 얻을 수 있습니다.</span>
+                            </h6>
+                        </th:block>
+
+                        <th:block th:unless="${rejectResultPage}">
+                            <h6 class="font-weight-bold border p-2 bg-info rounded bg-light text-center" style="word-break: keep-all">
+                                <span th:text="${statsResult.result} ? '통계 계산을 통해 나온 투표 결과에 선호도 차이가 있다고 볼 수 있습니다' : '통계 계산을 통해 나온 투표 결과에 선호도 차이가 없다고 볼 수 있습니다.'"></span>
+                            </h6>
+                        </th:block>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- 결과 수치 end -->
+    </div>
+
+    <div th:if="${statsResult.result}" class="col-lg-12 col-md-12 col-sm-12 mb-4">
+        <div class="card card-small card-post mb-4 flex rounded-2xl shadow-md ">
+            <h6 class="font-weight-bold border p-2 bg-light rounded w-full text-center mt-2 mx-2">
+                <span th:text="|선택지('${maxArticleItemContent}') 이(가) ${maxArticleItemTotal}표(${percentage}%) 로 주된 의견이라 볼 수 있습니다|"></span>
+            </h6>
+        </div>
+    </div>
+
+    <div th:if="${rejectResultPage}" class="col-lg-12 col-md-12 col-sm-12 mb-4">
+        <div class="card card-small card-post mb-4 flex rounded-2xl shadow-md">
+            <h6 class="font-weight-bold border p-2 bg-light rounded w-full text-center mt-2 mx-2">
+                <span th:text="|선택지('${maxArticleItemContent}') 이(가) ${maxArticleItemTotal}표로 우세합니다|"></span>
+            </h6>
+        </div>
+    </div>
+    <!-- 성별에 대한 결과 start -->
+    <div class="col-lg-12 col-md-12 col-sm-12 mb-4">
+        <div class="card card-small rounded-2xl shadow-md">
+            <h5 class="card-header border-bottom text-center font-weight-bold">
+                남녀별 투표 결과
+            </h5>
+            <div class="card-body row d-flex py-0 mb-3 justify-content-around">
+                <div class="col-lg-12 d-flex justify-content-center">
+
+                    <div class="container my-4">
+                        <div th:if="${rejectResultPage}" class="row justify-content-around font-weight-bold">
+                            <div>투표수가 너무 적어서 계산을 할 수 없어요.</div>
+                        </div>
+                        <div th:unless="${rejectResultPage}" class="row justify-content-around">
+                            <div class="col-lg-5 col-md-5 col-sm-5 col-5 text-center border rounded p-3 m-2">
+                                <h6><span class="badge badge-secondary py-2 px-4 font">남자</span></h6>
+                                <div th:if="${statsResult.male}" id="maleResult"></div>
+                                <div th:unless="${statsResult.male}" class="font-weight-bold">선호도 차이x</div>
+                            </div>
+                            <div class="col-lg-5 col-md-5 col-sm-5 col-5 text-center border rounded p-3 m-2">
+                                <h6><span class="badge badge-secondary py-2 px-4">여자</span></h6>
+                                <div th:if="${statsResult.female}" id="femaleResult"></div>
+                                <div th:unless="${statsResult.female}" class="font-weight-bold">선호도 차이x</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div th:each="num : ${#numbers.sequence(1,2)}">
+                    <div class="col-lg-12 col-md-12 col-sm-12 mb-5">
+                        <h6 class="m-0 text-center font-weight-bold" th:if="${num == 1}" th:text="남자"></h6>
+                        <h6 class="m-0 text-center font-weight-bold" th:if="${num != 1}" th:text="여자"></h6>
+                        <canvas th:id="genderResult+${num}" width="230px"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 성별에 대한 결과 end-->
+    <!-- 나이에 대한 결과 start-->
+    <div class="col-lg-12 col-md-12 col-sm-12 mb-4">
+        <div class="card card-small rounded-2xl shadow-md">
+            <h5 class="card-header border-bottom text-center font-weight-bold">
+                나이대별 투표 결과
+            </h5>
+            <div class="card-body row d-flex py-0 mb-3 justify-content-around">
+                <div class="col-lg-12 d-flex justify-content-center">
+
+                    <div class="container my-4">
+                        <div th:if="${rejectResultPage}" class="row justify-content-around font-weight-bold">
+                            <div>투표수가 너무 적어서 계산을 할 수 없어요.</div>
+                        </div>
+                        <div th:unless="${rejectResultPage}" class="row justify-content-around">
+                            <div class="col-lg-2 col-md-4 col-sm-4 col-6 text-center border rounded p-3 m-2">
+                                <h6><span class="badge badge-secondary">10대</span></h6>
+                                <div th:if="${statsResult.age10}" id="age10Result"></div>
+                                <div th:unless="${statsResult.age10}" class="font-weight-bold">선호도 차이x</div>
+                            </div>
+                            <div class="col-lg-2 col-md-4 col-sm-4 col-6 text-center border rounded p-3 m-2 ">
+                                <h6><span class="badge badge-secondary">20대</span></h6>
+                                <div th:if="${statsResult.age20}" id="age20Result"></div>
+                                <div th:unless="${statsResult.age20}" class="font-weight-bold">선호도 차이x</div>
+                            </div>
+                            <div class="col-lg-2 col-md-4 col-sm-4 col-6 text-center border rounded p-3 m-2">
+                                <h6><span class="badge badge-secondary">30대</span></h6>
+                                <div th:if="${statsResult.age30}" id="age30Result"></div>
+                                <div th:unless="${statsResult.age30}" class="font-weight-bold">선호도 차이x</div>
+                            </div>
+                            <div class="col-lg-2 col-md-4 col-sm-4 col-6 text-center border rounded p-3 m-2">
+                                <h6><span class="badge badge-secondary">40대</span></h6>
+                                <div th:if="${statsResult.age40}" id="age40Result"></div>
+                                <div th:unless="${statsResult.age40}" class="font-weight-bold">선호도 차이x</div>
+                            </div>
+                            <div class="col-lg-2 col-md-4 col-sm-4 col-6 text-center border rounded p-3 m-2">
+                                <h6><span class="badge badge-secondary">50대 이상</span></h6>
+                                <div th:if="${statsResult.ageOver50}" id="ageOver50Result"></div>
+                                <div th:unless="${statsResult.ageOver50}" class="font-weight-bold">선호도 차이x</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div th:each="num : ${#numbers.sequence(1,5)}">
+                    <div class="col-lg-12 col-md-12 col-sm-12 mb-5">
+                        <h6 class="m-0 text-center font-weight-bold" th:if="${num != 5}" th:text="${num*10}+대"></h6>
+                        <h6 class="m-0 text-center font-weight-bold" th:if="${num == 5}"
+                            th:text="${num*10}+'대 이상'"></h6>
+                        <canvas th:id="ageResult+${num}" width="230px"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 나이에 대한 결과 end -->
+    <!-- sns 공유하기 start-->
+    <div class=" col-lg-12 col-md-12 col-sm-12" >
+        <div class="row">
+            <div class="col-lg-6 col-md-6 col-sm-12">
+                <button type="button" id="shareTw" class="link-icon twitter"></button>
+                <button type="button" id="shareFb" class="link-icon facebook"></button>
+                <button type="button" id="shareKt" class="link-icon kakao"></button>
+                <button type="button" id="shareKs" class="link-icon kakaoStory"></button>
+            </div>
+            <div class="col-lg-6 col-md-6 col-sm-12 text-md-right  ">
+                <a class="btn btn-accent" th:href="@{|/article/vote/${article.id}|}">
+                    <i class="material-icons">how_to_vote</i> 투표하기
+                </a>
+                <a th:href="@{|/article/list?category=${article.category.id}|}" class="btn btn-secondary ml-1">
+                    <i class="material-icons">format_list_bulleted</i> 목록으로
+                </a>
+            </div>
+        </div>
+    </div>
+    <!-- sns 공유하기 end-->
+    <!--/*    댓글 start   */-->
+    <div class="col-lg-12 col-md-12 col-sm-12 mb-4 rounded-2xl shadow-md">
+        <div th:text="|댓글(${commentList.totalElements})|" class="p-1 text-large" style="font-size:1.25rem">0</div>
+        <div class="card card-small blog-comments">
+            <!--/*    댓글 form start*/-->
+            <div class="card-header border-bottom">
+                <!--/*   회원용 댓글 form*/-->
+                <form sec:authorize="isAuthenticated()" th:action="@{|/comment/create/${article.getId()}|}" th:object="${commentForm}" method="post">
+                    <div class="alert alert-danger" role="alert" th:if="${commentFormErrors != null}">
+                        <div th:each="err : ${commentFormErrors}" th:text="${err.defaultMessage}" />
+                    </div>
+                    <div>
+                        <label for="content" class="form-label m-0 pl-1">내용</label>
+                        <textarea th:field="*{content}" class="form-control comment-form" onkeydown='counter()' rows="3"
+                                  placeholder="내용을 입력하세요."></textarea>
+                        <span class="float-right text-muted">(0/200)</span>
+                    </div>
+                    <input type="submit" th:value="저장하기" class="commentFormBtn btn btn-primary btn-block font-weight-bold my-1"/>
+                </form>
+                <!--/*   비회원용 댓글 form*/-->
+                <form sec:authorize="isAnonymous()" th:action="@{|/comment/non-create/${article.getId()}|}" th:object="${nonMemberCommentForm}" method="post">
+                    <div class="alert alert-danger" role="alert" th:if="${commentFormErrors != null}">
+                        <div th:each="err : ${commentFormErrors}" th:text="${err.defaultMessage}" />
+                    </div>
+                    <div class="mb-2">
+                        <label for="tempNickname" class="form-label m-0 pl-1">임시 닉네임</label>
+                        <input type="text" class="form-control"  th:field="*{tempNickname}" placeholder="닉네임" maxlength="20" autocomplete="on" >
+                    </div>
+                    <div class="mb-3">
+                        <label for="tempPassword" class="form-label m-0 pl-1">임시 비밀번호</label>
+                        <input type="password" class="form-control" th:field="*{tempPassword}"  placeholder="비밀번호" maxlength="20" autocomplete="off" >
+                    </div>
+                    <div>
+                        <label for="content" class="form-label m-0 pl-1">내용</label>
+                        <textarea th:field="*{content}" id="content" class="form-control comment-form"
+                                  onkeydown='counter()' rows="3" placeholder="내용을 입력하세요."></textarea>
+                        <span class="float-right text-muted">(0/200)</span>
+                    </div>
+                    <input type="submit" th:value="저장하기" class="commentFormBtn btn btn-primary btn-block font-weight-bold my-1"/>
+                </form>
+            </div>
+            <!--/*    댓글 form end*/-->
+            <div th:each="comment : ${commentList}" class="card-body p-0">
+                <div class="blog-comments__item  p-3">
+                    <div class="blog-comments__avatar d-flex justify-content-between mr-3">
+                        <div class="item d-flex">
+                            <!--/*회원 비회원 공통 부분 start*/-->
+                            <div th:if="${comment.author != null}" th:text="${comment.author.getNickname()}"
+                                 class="font-weight-bold" style="font-size:16px">익명
+                            </div>
+                            <div th:if="${comment.tempNickname != null}" th:text="${comment.getTempNickname()}"
+                                 class="font-weight-bold" style="font-size:16px">익명
+                            </div>
+                            <div th:text="${#temporals.format(comment.getCreatedDate, 'yyyy-MM-dd HH:mm:ss')}"
+                                 class="small text-muted ml-2 mt-1">1 분전
+                            </div>
+                            <div th:text="${comment.getModifiedDate()}" class="d-none"></div>
+
+                            <!--/*  추천 start*/-->
+                            <th:block th:if="${#authentication.name != 'anonymousUser'}">
+                                <th:block th:if="${#sets.contains(votedComments, comment)}">
+                                    <a href="javascript:void(0);" th:myId="${comment.id}"
+                                       th:onclick="pushVoteBtn(event, this.getAttribute('myId'))" type="button"
+                                       class="material-icons text-dark  ml-2 px-1 float-right">
+                                        thumb_up_alt
+                                    </a>
+                                </th:block>
+                                <th:block th:unless="${#sets.contains(votedComments, comment)}">
+                                    <a href="javascript:void(0);" th:myId="${comment.id}"
+                                       th:onclick="pushVoteBtn(event, this.getAttribute('myId'))" type="button"
+                                       class="material-icons text-dark  ml-2 px-1 float-right">
+                                        thumb_up_off_alt
+                                    </a>
+                                </th:block>
+                            </th:block>
+                            <th:block th:if="${#authentication.name == 'anonymousUser'}">
+                                <a href="javascript:void(0);" th:myId="${comment.id}"
+                                   th:onclick="pushVoteBtn(event, this.getAttribute('myId'))" type="button"
+                                   class="material-icons text-dark  ml-2 px-1 float-right">
+                                    thumb_up_off_alt
+                                </a>
+                            </th:block>
+                            <!--/*  추천 End*/-->
+                            <span th:text="${#sets.size(comment.votes)}">0</span>
+                            <!--/*회원 비회원 공통 부분 end*/-->
+                            <!--/*회원이 보는 댓글 버튼 start*/-->
+                            <div th:if="${comment.author != null}" class="d-inline">
+                                <a th:if="${#authentication.name == comment.author.getMemberId()}"
+                                   href="javascript:void(0);" th:myContent="${comment.content}"
+                                   th:onclick="createCommentModifyForm(event, this.getAttribute('myContent'))"
+                                   type="button" class="btn-link pl-1">
+                                    <span class="text-success">
+                                        <i class="material-icons">edit</i>
+                                    </span>
+                                    수정
+                                </a>
+                                <a th:if="${#authentication.name == comment.author.getMemberId()}"
+                                   th:href="@{|/comment/delete/${comment.id}|}" type="button" class="btn-link">
+                                    <span class="text-light">
+                                        <i class="material-icons">delete</i>
+                                    </span>
+                                    삭제
+                                </a>
+                            </div>
+                            <!--/*회원이 보는 댓글 버튼 end*/-->
+                            <!--/*비회원이 보는 댓글 버튼 start*/-->
+                            <div th:if="${#authentication.name == 'anonymousUser'}" class="d-inline">
+                                <a href="javascript:void(0);" th:onclick="createCommentValidForm(event, 'check')"
+                                   class="btn-link pl-1">
+                                    <span class="text-success">
+                                        <i class="material-icons">edit</i>
+                                    </span>
+                                    수정
+                                </a>
+                                <a href="javascript:void(0);" type="button"
+                                   th:onclick="createCommentValidForm(event, 'delete')" class="btn-link">
+                                    <span class="text-light">
+                                        <i class="material-icons">delete</i>
+                                    </span>
+                                    삭제
+                                </a>
+                                <!--/*-->
+                                ==========================
+                                toast layout
+                                ==========================
+                                <!--*/-->
+                                <div class="toast-valid d-none position-absolute p-1 rounded shadow-sm" style="z-index:1;background-color:#b4b5b6">
+                                    <form>
+                                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" disabled/>
+                                        <input type="hidden" name="tempNickname" th:value="${comment.tempNickname}" disabled/>
+                                        <input type="password" name="tempPassword" value="" placeholder="비밀번호를 입력해주세요" class="border form-control-sm input-sm" autoComplete="off" required>
+                                    </form>
+                                    <div class="btn-group-sm mt-1  float-right">
+                                        <button type="button" class="btn btn-secondary border-0"
+                                                th:myContent="${comment.content}" th:myId="${comment.id}"
+                                                th:onclick="sendCommentValidForm(event, this.getAttribute('myContent'),this.getAttribute('myId'))">
+                                            확인
+                                        </button>
+                                        <button type="button" onclick="nonClearCommentModifyForm()"
+                                                class="btn btn-secondary border-0 text-center">취소
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <!--/*비회원이 보는 댓글 버튼 end*/-->
+                        </div>
+                        <!--/*-->
+                        ==========================
+                        신고
+                        ==========================
+                        <!--*/-->
+                        <div class="item">
+                            <!--/*비회원 댓글 모두 신고 표시*/-->
+                            <button th:if="${comment.author == null}" th:myId="${comment.id}"
+                                    th:onclick="pushReportBtn(event, this.getAttribute('myId'))" type="button"
+                                    class="btn btn-white btn-sm">
+                                    <span class="text-danger">
+                                        <i class="material-icons">report</i>
+                                    </span>
+                                신고
+                            </button>
+                            <!--/*회원 댓글 중 본인 제외하고 모두 신고 표시*/-->
+                            <th:block th:unless="${comment.author == null}">
+                                <button th:if="${#authentication.name != comment.author.getMemberId()}"
+                                        th:myId="${comment.id}"
+                                        th:onclick="pushReportBtn(event, this.getAttribute('myId'))" type="button"
+                                        class="btn btn-white btn-sm">
+                                    <span class="text-danger">
+                                        <i class="material-icons">report</i>
+                                    </span>
+                                    신고
+                                </button>
+                            </th:block>
+                        </div>
+                    </div>
+                    <!--/*-->
+                    ==========================
+                    댓글 수정 폼
+                    ==========================
+                    <!--*/-->
+                    <div class="blog-comments__content ml-3">
+                        <!--/*회원 댓글 수정폼*/-->
+                        <form th:if="${#authentication.name != 'anonymousUser'}"
+                              th:action="@{|/comment/modify/${comment.id}|}" method="post">
+                            <p class="m-0 my-1 mb-2 font-weight-light">[[${comment.content}]]</p>
+                        </form>
+                        <!--/*비회원 댓글 수정폼*/-->
+                        <form th:if="${#authentication.name == 'anonymousUser'}" th:action="@{|/comment/non-modify/${comment.id}|}" method="post">
+                            <p class="m-0 my-1 mb-2 font-weight-light" >[[${comment.content}]]</p>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <!--/*-->
+            ==========================
+            댓글 페이징
+            ==========================
+            <!--*/-->
+            <div class="card-footer border-top">
+                <div class="row">
+                    <div class="col text-center view-report">
+                        <!-- 페이징처리 시작 -->
+                        <div th:if="${!commentList.isEmpty()}">
+                            <ul class="pagination justify-content-center">
+                                <li class="page-item" th:classappend="${!commentList.hasPrevious} ? 'disabled'">
+                                    <a class="page-link"
+                                       th:href="@{|?page=0|}">
+                                        <span class="text-primary">
+                                            <i class="material-icons">first_page</i>
+                                        </span>
+                                    </a>
+                                </li>
+                                <li class="page-item" th:classappend="${!commentList.hasPrevious} ? 'disabled'">
+                                    <a class="page-link"
+                                       th:href="@{|?page=${commentList.number-1}|}">
+                                        <span class="text-primary">
+                                            <i class="material-icons">keyboard_arrow_left</i>
+                                        </span>
+                                    </a>
+                                </li>
+                                <li th:each="page: ${#numbers.sequence(0, commentList.totalPages-1)}"
+                                    th:if="${
+                                        (( commentList.number == 0 ) and ( page <= commentList.number+4 )) or
+                                        (( commentList.number == 1 ) and ( page <= commentList.number+3 and page >= commentList.number-1)) or
+                                        (( commentList.number > 1 and commentList.number < commentList.totalPages-2 ) and ( page <= commentList.number+2 and page >= commentList.number-2 )) or
+                                        (( commentList.number == commentList.totalPages-2 ) and ( page >= commentList.number-3 and page <= commentList.number+1 )) or
+                                        (( commentList.number == commentList.totalPages-1 ) and ( page >= commentList.number-4 ))
+                                      }"
+                                    th:classappend="${page == commentList.number} ? 'active'"
+                                    class="page-item">
+                                    <a th:text="${page+1}" class="page-link" th:href="@{|?page=${page}|}"></a>
+                                </li>
+                                <li class="page-item" th:classappend="${!commentList.hasNext} ? 'disabled'">
+                                    <a class="page-link" th:href="@{|?page=${commentList.number+1}|}">
+                                        <span class="text-primary">
+                                            <i class="material-icons">keyboard_arrow_right</i>
+                                        </span>
+                                    </a>
+                                </li>
+                                <li class="page-item" th:classappend="${!commentList.hasNext} ? 'disabled'">
+                                    <a class="page-link"
+                                       th:href="@{|?page=${commentList.totalPages-1}|}">
+                                        <span class="text-primary">
+                                            <i class="material-icons">last_page</i>
+                                        </span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                        <!-- 페이징처리 끝 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!--/*    댓글 end    */-->
+    <!--    html밖에다가 하면 적용이 잘 안됨-->
+    <script type="text/javascript" th:inline="javascript">
+
+    Chart.register(ChartDataLabels); // 차트에 value 보이게 설정
+
+    const result    = [[${articleItem2dArr}]]
+    const total     = result[0];
+    const totalSum = total.reduce((sum, currValue) => {
+        return sum + currValue;
+    }, 0);
+    document.querySelector('#totalVoteView').innerHTML = totalSum // div안에 투표수 총 합 넣기
+
+    const male      = result[1];
+    const female    = result[2];
+    const age10     = result[3];
+    const age20     = result[4];
+    const age30     = result[5];
+    const age40     = result[6];
+    const ageOver50 = result[7];
+
+    // chart에 넣기위한 항목 content 가져오기
+    let OriginContentList = new Array();
+    let contentList = new Array();
+    let content = '';
+    /*[# th:each="articleItem : ${articleItemList}"]*/
+    content = /*[[${articleItem.content}]]*/
+    OriginContentList.push(content)
+    if (content.length >= 15) {
+        contentList.push(content.substring(0,10)+"..");
+    } else {
+        contentList.push(content);
+    }
+
+    /*[/]*/
+
+    //성별 결과
+    if ([[${statsResult.male}]]) {
+        const maleMaxContent = OriginContentList[male.indexOf(Math.max(...male))]; // 최댓값 인덱스에 해당하는 항목
+        const maleResultTag = document.querySelector('#maleResult');
+        if (maleResultTag != null) {
+            maleResultTag.innerHTML = maleMaxContent;
+        }
+    }
+    if ([[${statsResult.female}]]) {
+        const femaleMaxContent = OriginContentList[female.indexOf(Math.max(...female))];
+        const femaleResultTag = document.querySelector('#femaleResult');
+        if (femaleResultTag != null) {
+            femaleResultTag.innerHTML = femaleMaxContent;
+        }
+    }
+
+    // 나이대 별 결과
+    if ([[${statsResult.age10}]]) {
+        const age10MaxContent = OriginContentList[age10.indexOf(Math.max(...age10))];
+        const ageResultTag = document.querySelector('#age10Result');
+        if (ageResultTag != null) {
+            ageResultTag.innerHTML = age10MaxContent;
+        }
+    }
+    if ([[${statsResult.age20}]]) {
+        const age20MaxContent = OriginContentList[age20.indexOf(Math.max(...age20))];
+        const age20ResultTag = document.querySelector('#age20Result');
+        if (age20ResultTag != null) {
+            age20ResultTag.innerHTML = age20MaxContent;
+        }
+    }
+    if ([[${statsResult.age30}]]) {
+        const age30MaxContent = OriginContentList[age30.indexOf(Math.max(...age30))];
+        const age30ResultTag = document.querySelector('#age30Result');
+        if (age30ResultTag != null) {
+            age30ResultTag.innerHTML = age30MaxContent;
+        }
+    }
+    if ([[${statsResult.age40}]]) {
+        const age40MaxContent = OriginContentList[age40.indexOf(Math.max(...age40))];
+        const age40ResultTag = document.querySelector('#age40Result');
+        if (age40ResultTag != null) {
+            age40ResultTag.innerHTML = age40MaxContent;
+        }
+    }
+    if ([[${statsResult.ageOver50}]]) {
+        const ageOver50MaxContent = OriginContentList[ageOver50.indexOf(Math.max(...ageOver50))];
+        const ageOver50ResultTag = document.querySelector('#ageOver50Result');
+        if (ageOver50ResultTag != null) {
+            ageOver50ResultTag.innerHTML = ageOver50MaxContent;
+        }
+    }
+
+    const totalChart = document.querySelector('#totalResult').getContext('2d');
+    const myChartTotal = new Chart(totalChart, {
+        type: "bar", // 차트의 형태
+        data: { // 차트에 들어갈 데이터
+            labels: contentList,
+            datasets: [{ //데이터
+                label: '총 투표수 결과', //차트 제목
+                data: total,//x축 label에 대응되는 데이터 값
+                datalabels:{
+                    align: function(context) {
+                        if (context.dataset.data[context.dataIndex] > 0){
+                            return 'center'
+                        } else {
+                            return 'right'
+                        }
+                    }, // 0이하 투표수의 경우 value표시를 오른쪽으로
+                },
+                backgroundColor: [
+                    //색상
+                    'rgba(54, 162, 235, 0.2)',
+                    'rgba(255, 99, 132, 0.2)',
+                    'rgba(255, 206, 86, 0.2)',
+                    'rgba(75, 192, 192, 0.2)',
+                    'rgba(153, 102, 255, 0.2)',
+                ],
+                borderColor: [
+                    //경계선 색상
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(255, 99, 132, 1)',
+                    'rgba(255, 206, 86, 1)',
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(153, 102, 255, 1)',
+                ],
+                borderWidth: 0.25, //경계선 굵기
+                maxBarThickness:40,
+            }]
+        },
+        options: {
+            plugins:{
+                legend: { // label 숨기기
+                    display: false
+                },
+                tooltip: {  // hover시 툴팁 글자
+                    callbacks: {
+                        title: function(context) {
+                            return OriginContentList[context[0].dataIndex];
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { // 격자제거
+                        // display: false,
+                    },
+                },
+            },
+            indexAxis: 'y', // 그래프 축 변경
+            maintainAspectRatio: false,
+        }
+    });
+    // 나이대별 차트
+    for (let i = 3; i <= 7; i++) {
+        const ageChart = document.querySelector("#ageResult"+(i-2)).getContext('2d');
+
+        var type="doughnut";
+        var myChartAge = new Chart(ageChart, {
+            type: "pie", // 차트의 형태
+            data: { // 차트에 들어갈 데이터
+                labels: contentList,
+                datasets: [
+                    { //데이터
+                        label: '총 투표수', //차트 제목
+                        fill: false, // line 형태일 때, 선 안쪽을 채우는지 안채우는지
+                        data: result[i],//x축 label에 대응되는 데이터 값
+                        rotation:270,
+                        datalabels:{
+                            display: function(context) {
+                                if (context.dataset.data[context.dataIndex] == 0){
+                                    return false
+                                }
+                            }, // 15이하 투표수의 경우 value표시를 오른쪽으로
+                        },
+                        backgroundColor: [
+                            //색상
+                            'rgba(54, 162, 235, 0.2)',
+                            'rgba(255, 99, 132, 0.2)',
+                            'rgba(255, 206, 86, 0.2)',
+                            'rgba(75, 192, 192, 0.2)',
+                            'rgba(153, 102, 255, 0.2)',
+                        ],
+                        borderColor: [
+                            //경계선 색상
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)',
+
+                        ],
+                        borderWidth: 0.25 //경계선 굵기
+                    } ,
+                ]
+            },
+            options: {
+                plugins:{
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                return OriginContentList[context[0].dataIndex];
+                            }
+                        }
+                    }
+                },
+            }
+        });
+    }
+    // 성별 차트
+    for (let i = 1; i <= 2; i++) {
+        const genderChart = document.querySelector("#genderResult"+(i)).getContext('2d');
+        var myChartGender = new Chart(genderChart, {
+            type: "pie", // 차트의 형태
+            data: { // 차트에 들어갈 데이터
+                labels: contentList,
+                datasets: [
+                    { //데이터
+                        fill: false, // line 형태일 때, 선 안쪽을 채우는지 안채우는지
+                        data: result[i],//x축 label에 대응되는 데이터 값
+                        rotation:270,
+                        datalabels:{
+                            display: function(context) {
+                                if (context.dataset.data[context.dataIndex] == 0){
+                                    return false
+                                }
+                            }, // 15이하 투표수의 경우 value표시를 오른쪽으로
+                        },
+                        backgroundColor: [
+                            //색상
+                            'rgba(54, 162, 235, 0.2)',
+                            'rgba(255, 99, 132, 0.2)',
+                            'rgba(255, 206, 86, 0.2)',
+                            'rgba(75, 192, 192, 0.2)',
+                            'rgba(153, 102, 255, 0.2)',
+                        ],
+                        borderColor: [
+                            //경계선 색상
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)',
+
+                        ],
+                        borderWidth: 0.25 //경계선 굵기
+                    } ,
+                ]
+            },
+            options: {
+                plugins:{
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                return OriginContentList[context[0].dataIndex];
+                            }
+                        }
+                    }
+                },
+            }
+        });
+    }
+
+
+
+
+
+    </script>
+</div>
+</html>
+<script type="text/javascript" th:inline="javascript">
+    const btnShareTw = document.querySelector('#shareTw');
+
+    const pageUrl = document.location.href;
+    btnShareTw.addEventListener('click', () => {
+        window.open(`https://twitter.com/intent/tweet?url=${pageUrl}`);
+    })
+    const btnShareFb = document.querySelector('#shareFb');
+
+    btnShareFb.addEventListener('click', () => {
+        window.open(`http://www.facebook.com/sharer/sharer.php?u=${pageUrl}`);
+    })
+    // 카카오 스토리 공유하기 -
+    const KAKAO_TOKEN = [[${@environment.getProperty('kakao.api-key')}]];
+    Kakao.init(KAKAO_TOKEN);
+    const btnShareKs = document.querySelector('#shareKs');
+
+    btnShareKs.addEventListener('click', () => {
+        Kakao.Story.share({
+            url: pageUrl, // 우리 도메인으로 변경해야 됨
+            text: '카카오스토리로 공유 합니다.'
+        });
+    })
+    // 카카오톡 공유하기
+    Kakao.Link.createDefaultButton({
+        container: '#shareKt',
+        objectType: 'feed',
+        content: {
+            title: [[${article.title}]],
+            description: [[${article.content}]],
+            imageUrl: 'http://eomcheon.com/images/main.jpg',
+            link: {
+                mobileWebUrl: pageUrl,
+                webUrl: pageUrl
+            }
+        },
+    });
+</script>
+
+<script th:inline="javascript">
+    // 글자 수 체크
+    function counter() {
+        let content = document.querySelector('.comment-form');
+        let value = content.value;
+        if (value.length >200) {
+            value = value.substring(0,199);
+            content.value = value;
+        }
+        content.nextElementSibling.innerHTML =  '(' + value.length +'/200)';
+    }
+
+    /**
+     *  댓글 신고
+     */
+    function pushReportBtn(event, commentId) {
+        if(![[${#authentication.name != 'anonymousUser'}]]) {
+            alert("로그인 후 이용해주세요");
+            return false;
+        }
+        fetch(`/comment/report/${commentId}`, {
+            headers: {
+                "Content-Type": "application/json",
+            }
+        })
+            .then(res => {
+                return res.json();
+            })
+            .then(data => {
+                if (data.result === "success") {
+                    alert("신고가 접수되었습니다.");
+                } else if (data.result === "failure") {
+                    alert("이미 신고한 댓글입니다.");
+                }
+            })
+            .catch(err => {
+                alert("다시 시도해 주세요.");
+            });
+    }
+    /**
+     *  댓글 좋아요
+     */
+    function pushVoteBtn(event, commentId) {
+
+        if(![[${#authentication.name != 'anonymousUser'}]]) {
+            alert("로그인 후 이용해주세요");
+            return false;
+        }
+
+        fetch(`/comment/vote/${commentId}`, {
+            headers: {
+                "Content-Type": "application/json",
+            }
+            })
+            .then(res => {
+                return res.json();
+            })
+            .then(data => {
+                if (data.result === "success") {
+                    const voteBtn = event.target;
+                    if(voteBtn.innerText === "thumb_up_alt") {
+                        // 좋아요 된 상태라면 취소
+                        voteBtn.innerText = "thumb_up_off_alt";
+                        voteBtn.nextElementSibling.innerText--;
+                    } else {
+                        // 좋아요가 안 된 상태라면 추가
+                        voteBtn.innerText = "thumb_up_alt";
+                        voteBtn.nextElementSibling.innerText++;
+                    }
+                } else if (data.result === "failure") {
+                    alert("자신의 댓글에는 추천할 수 없습니다.");
+                    return;
+                }
+            })
+            .catch(err => {
+                alert("다시 시도해 주세요.");
+            });
+    }
+    /**
+     *  [회원] 관련 이벤트 코드
+     */
+    // 수정 form 내용물
+    const commentModifyLayout = `<div id='modify-from-group' class='form-group p-absolute'>
+                                <textarea class='form-control' name='content' rows='3' required></textarea>
+                                <input type='submit' class='mb-2 btn btn-sm btn-primary mr-1 mt-1' value='수정완료'/>
+                                <button type='button' class='mb-2 btn btn-sm btn-secondary mr-1 mt-1' onclick='clearCommentModifyForm()' >취소</button>
+                              </div>`;
+    const commentModifyTag = document.createElement('div');
+    commentModifyTag.innerHTML = commentModifyLayout;
+
+    let commentModifyBtn = '';      // 댓글 수정 버튼 태그
+    let commentContentElement = ''; // 이전 댓글 내용
+
+    // 댓글 수정 버튼 이벤트
+    function createCommentModifyForm(event, content) {
+
+        if (commentModifyBtn !== '') {
+            // 이전 수정 버튼 보이게 설정
+            commentModifyBtn.classList.remove('d-none');
+        }
+
+        if (commentContentElement !== '') {
+            // 이전 수정 버튼 보이게 설정
+            commentContentElement.classList.remove('d-none');
+        }
+
+        commentModifyBtn = event.target.closest('a');   // 수정 버튼
+        commentModifyBtn.classList.toggle('d-none');    // 수정 버튼 숨김
+
+        commentModifyTag.querySelector('.form-control').innerHTML = content;                                // textarea에 내용 넣어줌
+        const commentModifyForm = commentModifyBtn.closest('.blog-comments__item').children[1].children[0]; // form 태그 가져오기
+        commentModifyForm.children[1].classList.add("d-none");                                              // p태그 내용 안 보이게 설정
+        commentContentElement = commentModifyForm.children[1];                                              // 임시로 p 태그 넣어줌
+        commentModifyForm.append(commentModifyTag);                                                         // form 위치에 form 내용물 추가
+    }
+    // 댓글 수정폼 취소 버튼 이벤트
+    function clearCommentModifyForm() {
+        commentContentElement ='';
+        commentModifyBtn.classList.remove('d-none');                        // 수정 버튼 다시 보이게
+        commentModifyTag.previousElementSibling.classList.toggle('d-none'); // p태그 다시 보이게
+        commentModifyTag.remove();                                          // form 제거
+    }
+
+    /**
+     * [비회원] 관련 이벤트 코드
+     */
+    let commentValidToast = ''; // toast 태그
+    let commentValidMethod =''; // 수정 or 삭제 변수
+
+    // 댓글 수정 버튼 이벤트
+    function createCommentValidForm(event, method) {
+
+        commentValidMethod = method;
+
+        if (commentValidToast !== '') {
+            // 이전 toast창 안 보이게 설정
+            commentValidToast.classList.add('d-none');
+        }
+
+        commentValidToast = event.target.closest('div').lastElementChild  // toast창 가져옴
+        commentValidToast.classList.toggle('d-none')                      // toast창 보이게 설정
+
+        // 버튼 위치 조절
+        if (method === 'delete') {
+            commentValidToast.classList.add('ml-5')
+        } else {
+            commentValidToast.classList.remove('ml-5')
+        }
+    }
+
+    // 비회원 수정 폼 생성
+    function nonCreateCommentModifyForm(event, content) {
+
+        if (commentModifyBtn !== '') {
+            // 이전 수정버튼 보이게 설정
+            commentModifyBtn.classList.remove('d-none');
+        }
+
+        if (commentContentElement !== '') {
+            // 이전 댓글 내용 보이게 설정
+            commentContentElement.classList.remove('d-none');
+        }
+        commentModifyBtn = event.target.closest('.d-inline').firstElementChild  // 수정 버튼 가져옴
+        commentModifyBtn.classList.toggle('d-none');                            // 수정 버튼 안 보이게 설정
+
+        // createCommentModifyForm메서드와 동일
+        commentModifyTag.querySelector('.form-control').innerHTML = content;
+        const commentModifyForm = commentModifyBtn.closest('.blog-comments__item').children[1].children[0];
+        commentModifyForm.children[1].classList.add("d-none");
+        commentContentElement = commentModifyForm.children[1];
+        commentModifyForm.append(commentModifyTag);
+    }
+    // toast 창 취소 버튼 이벤트
+    function nonClearCommentModifyForm() {
+        commentValidToast.classList.add('d-none');
+    }
+    // toast 창 확인 버튼 이벤트
+    function sendCommentValidForm(event, content, commentId) {
+        if (commentValidMethod === ''){
+            return;
+        }
+        const validForm = event.target.closest('.toast-valid').firstElementChild;  // toast form 가져옴
+        const token = validForm.children[0].value;                                 // token 값 가져옴
+        const tempNickname = validForm.children[1].value;                          // tempNickname 값 가져옴
+        const tempPassword = validForm.children[2].value;                          // tempPassword 값 가져옴
+
+        if (tempPassword == '') {
+            alert('비밀번호를 입력세주세요');
+            return;
+        }
+        // method 여부에 따라서 check 또는 delete 요청을 보낸다.
+        fetch(`/comment/non-${commentValidMethod}/${commentId}`, {
+            // credentials: 'include',
+            method: "POST",
+            body : JSON.stringify({
+                tempNickname : tempNickname,
+                tempPassword : tempPassword
+            }),
+            headers: {
+                "Content-Type": "application/json",
+                'X-CSRF-Token': token  // 필수! 안 해주면 "403 forbidden" 오류
+            }
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.result === "success") {
+                    switch (commentValidMethod) {
+                        case "check":
+                            // 유효성 체크만
+                            nonCreateCommentModifyForm(event, content); // 수정 form 보이게 설정
+                            nonClearCommentModifyForm();                // toast 창 숨겨줌
+                            break;
+                        case "delete":
+                            // 유효성 체크 후 삭제
+                            alert("댓글이 삭제되었습니다.");
+                            location.reload();
+                            break;
+                        default :
+                            alert("잘못된 접근입니다.");
+                    }
+                } else if (data.result === "failure") {
+                    alert("비밀번호가 틀렸습니다.");
+                    return;
+                }
+            })
+            .catch(err => {
+                alert(err);
+            });
+    }
+
+
+
+
+</script>
+
+<script type="text/javascript">
+
+    const pathArr = location.pathname.split("/");
+    const articleId = pathArr[pathArr.length - 1]; // article id
+    // form 요청 이후 스크롤 유지
+    window.onbeforeunload = (event) => {
+        const pathArr = location.pathname.split("/");
+        localStorage.setItem('resultY', this.scrollY);
+        localStorage.setItem('before', articleId);
+    }
+    if (localStorage.getItem('resultY')) {
+        // 페이징 링크인 경우 댓글 상단부분으로 화면전환
+        if (localStorage.getItem('before') == articleId) {
+            // 같은 article인 경우 즉 댓글이 작성된 이후 일 경우에만 앵커 유지
+            if (window.location.search.includes("page")) {
+                const commentFormBtn = document.querySelector('.commentFormBtn');
+                const commentFormBtnOffset = commentFormBtn.getBoundingClientRect();
+                window.scrollTo({top: commentFormBtnOffset.top});
+            } else {
+                window.scrollTo({top: localStorage.getItem('resultY')});
+                localStorage.removeItem('resultY');
+                localStorage.removeItem('before');
+            }
+        }
+    }
+</script>
